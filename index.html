@@ -3142,8 +3142,9 @@ function rentPage(el){
  // change against the previous month, by counter name
  let chg=[];if(PM){const f=R=>{const o={};R.forEach(r=>o[r[2]]=(o[r[2]]||0)+r[5]);return o},c=f(M.rows),p=f(PM.rows);
   chg=[...new Set(Object.keys(c).concat(Object.keys(p)))].map(n=>[n,p[n]||0,c[n]||0]).filter(x=>x[1]!==x[2]).sort((x,y)=>Math.abs(y[2]-y[1])-Math.abs(x[2]-x[1]))}
- const seg=ms.length>1?`<span class="seg">${ms.slice(-6).map(m=>`<button data-rnm="${m}" class="${m===RN.m?'on':''}">${ml(m)}</button>`).join('')}</span>`:'';
- const chips=`<span class="seg">${['all'].concat(dept).map(d=>`<button data-rnd="${encodeURIComponent(d)}" class="${RN.dp===d?'on':''}">${d==='all'?'All departments':esc(d)}</button>`).join('')}</span>`;
+ const seg=ms.length>1?`<span class="seg"><button data-rnm="${ms[ms.length-1]}" class="${i===ms.length-1?'on':''}">Latest</button></span><span class="seg"><button data-rnm="${ms[i-1]||''}"${i?'':' disabled'}>&#9664; Previous</button><button data-rnm="${ms[i+1]||''}"${i<ms.length-1?'':' disabled'}>Next &#9654;</button></span><select class="bm-btn" data-rnsel="1">${ms.slice().reverse().map(m=>`<option value="${m}"${m===RN.m?' selected':''}>${ml(m)}</option>`).join('')}</select>`:'';
+ const chips=`<span style="display:flex;gap:6px;flex-wrap:wrap"><select class="bm-btn" data-rndsel="1">${['all'].concat(dept).map(d=>`<option value="${esc(d)}"${RN.dp===d?' selected':''}>${d==='all'?'All departments':esc(d)}</option>`).join('')}</select><button class="bm-btn" data-rfcp="rent">📷 Copy photo</button><button class="bm-btn noprn" data-rfpr="rent">🖨 Print</button></span>`;
+ RX.snap.rent={t:'Rent',sub:ml(RN.m)+(RN.dp==='all'?'':' · '+RN.dp),f:'',head:['Counter','Department','Zone','Rent','Adjustment','Payable','Remarks'],num:[0,0,0,1,1,1,0],body:sh.slice().sort((p,q)=>q.r[5]-p.r[5]||q.r[3]-p.r[3]).map(x=>[x.r[2],x.r[0]||'',x.r[1]||'',x.r[3]?fm(x.r[3]):'–',x.r[4]?fm(x.r[4]):'–',x.r[5]?fm(x.r[5]):'–',x.r[6]||'']),sum:'Rent payable ৳'+fm(T.pay)+' · '+rows.length+' counters'};
  el.innerHTML=hd(ml(RN.m)+' · monthly rent by counter, from the Rent sheet (tab "'+esc(M.tab)+'")',seg)
  +`<div class="kxs">${tile('coin','Rent payable','৳'+fm(T.pay),'৳'+fm(T.pay*12)+' a year at this rate','','',T.pay,'fm','৳')}
  ${tile('receipt','Monthly rent before adjustments','৳'+fm(T.rent),'adjusted down by ৳'+fm(T.adj),'','',T.rent,'fm','৳')}
@@ -3971,13 +3972,14 @@ const pyZl=z=>esc(z.name)+(z.u==='Soudia Aero'?' <span class="mu">· Aero</span>
 window.pyGo=v=>{if(v){PY.m=v;render()}};
 const ty=(c,r,t)=>tableX(c,r,t,0,c.length>=4);
 function pyPage(el){
- const hd=sub=>`<div class="ph"><div><h1>Salary &amp; Payroll</h1><p>${sub}</p></div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button data-pym="-1" title="Earlier month">‹</button><select onchange="pyGo(this.value)" style="padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--cd);color:inherit;font:inherit">${(PY.d||[]).slice().reverse().map(x=>`<option value="${x.m}"${x.m===PY.m?' selected':''}>${esc(x.lab)}</option>`).join('')}</select><button data-pym="1" title="Later month">›</button><button data-pyea="1">Expand all</button><button data-pyea="0">Collapse all</button><button data-pyr="1" title="Read the salary sheet again">Refresh</button><button data-pyprint title="Print this page">🖨 Print</button></div></div>`;
+ const hd=sub=>`<div class="ph"><div><h1>Salary &amp; Payroll</h1><p>${sub}</p></div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button data-pym="latest" title="Latest month">Latest</button><button data-pym="-1" title="Earlier month">‹ Previous</button><select onchange="pyGo(this.value)" style="padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--cd);color:inherit;font:inherit">${(PY.d||[]).slice().reverse().map(x=>`<option value="${x.m}"${x.m===PY.m?' selected':''}>${esc(x.lab)}</option>`).join('')}</select><button data-pym="1" title="Later month">Next ›</button><button data-pyea="1">Expand all</button><button data-pyea="0">Collapse all</button><button data-pyr="1" title="Read the salary sheet again">Refresh</button><button data-rfcp="payroll" title="Copy the zone summary as a picture">📷 Copy photo</button><button data-pyprint title="Print this page">🖨 Print</button></div></div>`;
  if(!PY.d){el.innerHTML=hd('Reading the MM Motors Salarysheet…')+`<div class="c emp"><b>${PY.err?'Could not read the MM Motors Salarysheet':'Reading the MM Motors Salarysheet…'}</b>${esc(PY.err||'This can take a few seconds.')}${PY.err?'<br><button data-pyr="1">Try again</button>':''}</div>`;if(!PY.err)pyLoad();return}
  if(!PY.d.length){el.innerHTML=hd('Monthly salary by zone, counter and person')+'<div class="c emp"><b>No salary months found</b>The Salary Register tab needs a Month column with values like "Oct 2026".</div>';return}
  const D=PY.d,ms=D.map(x=>x.m);if(!ms.includes(PY.m))PY.m=ms[ms.length-1];
  const i=ms.indexOf(PY.m),M=D[i],PM=i>0?D[i-1]:null,rows=pyRows(M),prow=PM?pyRows(PM):null,tot=pyA(rows),ptot=prow?pyA(prow):null,Z=pyTree(rows);
  const oa=PY.open,eaAll=Z.every(z=>oa['z|'+z.k]);
  const num=v=>v<0?'<b class="dn">'+fm(v)+'</b>':fm(v);
+ RX.snap.payroll={t:'Salary & Payroll',sub:M.lab||PY.m,f:'',head:['Zone','Staff','Gross','Absent','Deductions','Net payable'],num:[0,1,1,1,1,1],body:Z.map(z=>[rfTx(pyZl(z)),String(z.a.n),fm(z.a.g),z.a.ab?fm(z.a.ab):'–',z.a.dd?fm(z.a.dd):'–',fm(z.a.nt)]).concat([['Total',String(tot.n),fm(tot.g),fm(tot.ab),fm(tot.dd),fm(tot.nt)]]),sum:'Net payable ৳'+fm(tot.nt)+' · '+tot.n+' staff'};
  // ---- main table: zone > counter / office / garage > person
  const body=[];
  Z.forEach(z=>{const zo=!!oa['z|'+z.k],a=z.a;
@@ -4174,7 +4176,7 @@ document.addEventListener('click',e=>{const g=s=>e.target.closest&&e.target.clos
  if(t=g('[data-ltl]')){ltAct('l|'+t.dataset.ltl);return}
  if(t=g('[data-ltf]')){LTS.f=t.dataset.ltf;render();return}
  if(t=g('[data-dyd]')){const v=t.dataset.dyd;if(v==='r'){DY.c={};DY.err='';DY.led=null;DY.ledErr='';render();return}if(v==='t'){TS.mode='last';render();return}const n=Math.min(dyD(dyShift(DY.d||dyToday(),+v)),dyD(dyToday()));setRange(n,n);return}
- if(t=g('[data-rnm]')){RN.m=t.dataset.rnm;render();return}
+ if(t=g('[data-rnm]')){if(t.dataset.rnm){RN.m=t.dataset.rnm;render()}return}
  if(t=g('[data-rnd]')){RN.dp=decodeURIComponent(t.dataset.rnd);render();return}
  if(t=g('[data-rnx]')){RN.dup=t.dataset.rnx==='1';render();return}
  if(g('[data-rnr]')){RN.d=null;RN.err='';render();return}
@@ -4225,7 +4227,7 @@ document.addEventListener('click',e=>{const g=s=>e.target.closest&&e.target.clos
  if(t=g('[data-ox]')){const k=t.dataset.ox;TS.ox[k]=!TS.ox[k];render();return}
  if(t=g('[data-pyx]')){const k=decodeURIComponent(t.dataset.pyx);PY.open[k]=!PY.open[k];render();return}
  if(t=g('[data-pyea]')){const on=t.dataset.pyea==='1';PY.open={};if(on){const M=(PY.d||[]).find(x=>x.m===PY.m);if(M)pyTree(pyRows(M)).forEach(z=>{PY.open['z|'+z.k]=true;z.secs.forEach(c=>PY.open['c|'+z.k+'|'+c.name]=true)})}render();return}
- if(t=g('[data-pym]')){const ms=(PY.d||[]).map(x=>x.m),j=ms.indexOf(PY.m)+(+t.dataset.pym);if(j>=0&&j<ms.length){PY.m=ms[j];render()}return}
+ if(t=g('[data-pym]')){const ms=(PY.d||[]).map(x=>x.m),j=t.dataset.pym==='latest'?ms.length-1:ms.indexOf(PY.m)+(+t.dataset.pym);if(j>=0&&j<ms.length){PY.m=ms[j];render()}return}
  if(g('[data-pyr]')){PY.d=null;PY.err='';render();return}
  if(g('[data-pyprint]')){let ps=$('pgsz');if(!ps){ps=document.createElement('style');ps.id='pgsz';document.head.appendChild(ps)}ps.textContent='@page{size:A4 landscape;margin:0}';document.body.classList.add('dyp','syp');const done=()=>{ps.textContent='';document.body.classList.remove('dyp','syp');window.removeEventListener('afterprint',done)};window.addEventListener('afterprint',done);setTimeout(()=>window.print(),60);return}
  if(t=g('[data-dyh]')){const k=decodeURIComponent(t.dataset.dyh);DY.hx[k]=!DY.hx[k];render();return}
@@ -4297,7 +4299,7 @@ document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.tar
 if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();cmdOpen();return}
  if($('cmd').style.display==='block'){if(e.key==='Escape')cmdClose();else if(e.key==='ArrowDown'){CMD.sel=Math.min(CMD.items.length-1,CMD.sel+1);cmdDraw()}else if(e.key==='ArrowUp'){CMD.sel=Math.max(0,CMD.sel-1);cmdDraw()}else if(e.key==='Enter')cmdGo(CMD.sel);return}
  if(e.key==='Escape'){$('bellp').style.display='none';if(SR.open){SR.open=null;render()}else if(TS.bp!=null){TS.bp=null;render()}else if(TS.pf!=null){TS.pf=null;render()}}});
-document.addEventListener('change',e=>{const rt=e.target;if(rt&&rt.dataset&&rt.dataset.rfs){const q=rt.dataset.rfs.split('|');rfSt(q[0]).s[q[1]]=rt.value;render();return}if(rt&&rt.dataset&&rt.dataset.rfd){const q=rt.dataset.rfd.split('|'),F=rfSt(q[0]);if(rt.value){F[q[1]]=rt.value;F.p='rg';render()}return}if(e.target&&e.target.id==='bk-sel'){TS.ba=e.target.value?[e.target.value]:[];render();return}if(e.target&&e.target.id==='cf-i'){CF.inc=+e.target.value;cf();return}
+document.addEventListener('change',e=>{const rt=e.target;if(rt&&rt.dataset&&rt.dataset.rnsel){RN.m=rt.value;render();return}if(rt&&rt.dataset&&rt.dataset.rndsel){RN.dp=rt.value;render();return}if(rt&&rt.dataset&&rt.dataset.rfs){const q=rt.dataset.rfs.split('|');rfSt(q[0]).s[q[1]]=rt.value;render();return}if(rt&&rt.dataset&&rt.dataset.rfd){const q=rt.dataset.rfd.split('|'),F=rfSt(q[0]);if(rt.value){F[q[1]]=rt.value;F.p='rg';render()}return}if(e.target&&e.target.id==='bk-sel'){TS.ba=e.target.value?[e.target.value]:[];render();return}if(e.target&&e.target.id==='cf-i'){CF.inc=+e.target.value;cf();return}
  if(e.target&&e.target.id==='sy-m'){SYM.m=e.target.value;render();return}
  if(e.target&&e.target.id==='exm-sel'){RX.m=e.target.value;render();return}
 if(e.target&&e.target.id==='pw-d'&&e.target.value){TS.pw=Date.parse(e.target.value)/DAY;render();return}
