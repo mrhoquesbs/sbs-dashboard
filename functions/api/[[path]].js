@@ -35,7 +35,7 @@ async function apps(env, em, fn, args) {              // one call to the Apps Sc
 async function fetchAndStore(env, em, fn, args, k) {
   const o = await apps(env, em, fn, args); if (!o.ok) return o;
   const body = JSON.stringify(o.data === undefined ? null : o.data), now = Date.now();
-  try { if (body.length < 6e6) await env.DB.prepare('INSERT INTO rpc (k,fn,em,ar,z,t,la) VALUES (?,?,?,?,?,?,?) ON CONFLICT(k) DO UPDATE SET z=excluded.z,t=excluded.t').bind(k, fn, em, JSON.stringify(args), await gz(body), now, now).run(); } catch (e) {}
+  try { if (body.length < 3e7) { const z = await gz(body); if (z.length < 1.9e6) await env.DB.prepare('INSERT INTO rpc (k,fn,em,ar,z,t,la) VALUES (?,?,?,?,?,?,?) ON CONFLICT(k) DO UPDATE SET z=excluded.z,t=excluded.t').bind(k, fn, em, JSON.stringify(args), z, now, now).run(); } } catch (e) {}   // a database row holds up to 2 MB: judge by the compressed size, so a large but compressible answer (the 7 MB overspeed list) is still kept
   return { ok: true, body };
 }
 const bearer = (r, env) => env.PUSH_TOKEN && r.headers.get('authorization') === 'Bearer ' + env.PUSH_TOKEN;
