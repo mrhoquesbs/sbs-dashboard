@@ -447,18 +447,40 @@ function cols_(hdr, names) {                  // first header that contains any 
 const OS_FILE_ = 'overspeed_cache.json';
 function osCopy_() { try { const f = file_(OS_FILE_); return f && Date.now() - f.getLastUpdated().getTime() < 864e5 ? f.getBlob().getDataAsString() : null; } catch (e) { return null; } }
 function getOverspeed() { guard_('mn', 'ov', 'ic'); return memo_('getOverspeed', [], 120, () => osCopy_() || getOverspeed_c_()); }
-function refreshOverspeed() { const t0 = Date.now(), s = getOverspeed_c_(); save_(OS_FILE_, s); const m = Math.round(s.length / 1024) + ' KB, built in ' + Math.round((Date.now() - t0) / 1000) + ' s'; console.log('Overspeed copy saved: ' + m); return m; }
+const OS_STATE_ = 'overspeed_state.json';
+let OSS_ = null;                                                 // set by getOverspeed_c_: how many data rows were read and the keys already seen
+function osSaveState_() { if (OSS_) save_(OS_STATE_, JSON.stringify({ n: OSS_.n, seen: Object.keys(OSS_.seen) })); }
+// Full rebuild (about 2 minutes). Also remembers how far it read, so refreshOverspeedInc can later add only new rows.
+function refreshOverspeed() {
+  const lock = LockService.getScriptLock(); lock.waitLock(120000);
+  try {
+    const t0 = Date.now(), s = getOverspeed_c_(); save_(OS_FILE_, s); osSaveState_(); bump_();
+    const m = Math.round(s.length / 1024) + ' KB, built in ' + Math.round((Date.now() - t0) / 1000) + ' s'; console.log('Overspeed copy saved: ' + m); return m;
+  } finally { lock.releaseLock(); }
+}
+// Quick update: reads only the rows added below the last one processed and appends them to the saved copy (the caller holds the script lock).
+// Edits to old rows and roster changes are picked up by the full rebuild every 2 hours.
+function refreshOverspeedInc() {
+  const t0 = Date.now(), st = JSON.parse(read_(OS_STATE_) || 'null'), cp = read_(OS_FILE_);
+  if (!st || !cp) return 'no base copy yet (run refreshOverspeed once)';
+  const c = JSON.parse(cp), seen = {}; st.seen.forEach(k => seen[k] = 1);
+  const s = getOverspeed_c_({ n: st.n, seen: seen, r: c.r, raw: c.raw, mism: c.dateMismatch });
+  if (OSS_.n === st.n) return 'no new rows';
+  save_(OS_FILE_, s); osSaveState_(); bump_();
+  const m = (OSS_.n - st.n) + ' new rows added in ' + Math.round((Date.now() - t0) / 1000) + ' s'; console.log('Overspeed: ' + m); return m;
+}
 function overspeedCopySetup() {
   ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === 'refreshOverspeed') ScriptApp.deleteTrigger(t); });
   ScriptApp.newTrigger('refreshOverspeed').timeBased().everyHours(2).create();
   return refreshOverspeed();
 }
-function getOverspeed_c_() {
+function getOverspeed_c_(prev) {                                  // prev (optional): { n, seen, r, raw, mism } = the saved state, so only rows after row n+1 are read
   const ss = SpreadsheetApp.openById(MON_ID), tz = ss.getSpreadsheetTimeZone(), sh = ss.getSheetByName('Overspeeding');
+  if (prev && sh.getLastRow() - 1 < prev.n) prev = null;         // rows were removed: start again from scratch
   const hdr = sh.getRange(1, 1, 1, 14).getValues()[0], c = cols_(hdr, { place: ['place'], date: ['date'], coach: ['coach', 'trip'], bus: ['bus'], st: ['start'], en: ['end'], du: ['duration'], top: ['top'], avg: ['average', 'avg'], loc: ['location'], dr: ['driver'], su: ['supervisor'], al: ['alert'], mo: ['monitor'], no: ['note'] });
-  const n = sh.getLastRow() - 1, v = n > 0 ? sh.getRange(2, 1, n, 14).getValues() : [], seen = {}, out = [], g = (r, k) => c[k] >= 0 ? r[c[k]] : '';
+  const n = sh.getLastRow() - 1, n0 = prev ? prev.n : 0, v = n > n0 ? sh.getRange(2 + n0, 1, n - n0, 14).getValues() : [], seen = prev ? prev.seen : {}, out = prev ? prev.r : [], g = (r, k) => c[k] >= 0 ? r[c[k]] : '';
   const nm = x => { const t = txt_(x); return /^n\/?a$/i.test(t) ? '' : t; };
-  let raw = 0, mism = 0;
+  let raw = prev ? prev.raw : 0, mism = prev ? prev.mism : 0;
   // roster: Rotation tab and the list beside the data (Date, Coach, Bus No, Driver, Supervisor)
   const roster = {};
   const addR = (bus, driver, sup, d) => { const k = busKey_(bus); if (!k || (!nm(driver) && !nm(sup))) return; (roster[k] = roster[k] || []).push([d || 0, nm(driver), nm(sup)]); };
@@ -487,6 +509,7 @@ function getOverspeed_c_() {
       lm ? +lm[1] : null, lm ? +lm[2] : null, txt_(g(r, 'place')) || (lm ? lm[3].split(',').slice(0, 2).join(',').trim() : loc), nm(g(r, 'dr')) || w[0], nm(g(r, 'su')) || w[1], txt_(g(r, 'al')), txt_(g(r, 'mo')), txt_(g(r, 'no')), acc[bus] || '']);
   }
   // which of these buses also appear in the sales data (matched on the bus number, whatever its format)
+  OSS_ = { n: n, seen: seen };
   const D = JSON.parse(read_('dict.json') || '{"bus":[]}'), sales = {}; D.bus.forEach(b => { const k = busKey_(b); if (k) sales[k] = 1; });
   const buses = {}; out.forEach(x => buses[x[2]] = 1);
   const all = Object.keys(buses), un = all.filter(b => !sales[b]);
