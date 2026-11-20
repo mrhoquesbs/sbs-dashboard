@@ -504,7 +504,8 @@ body.ipp .ipx .pcd table.i3 td.m{color:#333!important}
 body.ipp .ipx .pcd table.i3 tr.adr td:first-child{padding-left:24px!important}
 body.ipp .ipx .pcd table.i3 tr.adr td.m{font-weight:600}
 body.ipp .ipx .pcd table.i3 .pcs{font-size:.8em!important;font-weight:600;color:#0b7a78}
-</style></head><body>
+</style><style id="srt">#main table th.srt{cursor:pointer;user-select:none}#main table th.srt:hover{color:var(--ac)}#main table th[data-s="1"]::after{content:" \25B2";font-size:.7em;opacity:.75}#main table th[data-s="-1"]::after{content:" \25BC";font-size:.7em;opacity:.75}@media print{#main table th::after{content:none!important}}
+.dpb{flex-wrap:wrap}.rib{display:flex;flex-wrap:wrap;gap:8px;align-items:center}</style></head><body>
 <div id="app">
 <style>.rtx{display:none}@media print{body.rtp .sbx:not(.rtx){display:none!important}body.rtp .rtx{display:block!important}
 .rtx .rtpg{break-after:page;page-break-after:always}.rtx .rtpg:last-child{break-after:auto;page-break-after:auto}
@@ -531,8 +532,8 @@ body.ipp .ipx .pcd table.i3 .pcs{font-size:.8em!important;font-weight:600;color:
 <nav id="secnav" aria-label="On this page" style="display:none"></nav>
 <main id="main">
 <div class="c rib" id="rib">
- <span class="seg" id="rib-nv" style="display:none"><button data-nav="-1" title="Previous">&#9664; Previous</button><button data-nav="1" title="Next">Next &#9654;</button></span>
  <div class="seg"><button data-m="last">Last date</button><button data-m="prev" style="display:none">Yesterday</button><button data-m="range">Range</button><button data-m="d30">30 days</button><button data-m="month">Month</button><button data-m="all">All</button></div>
+ <span class="seg" id="rib-nv" style="display:none"><button data-nav="-1" title="Previous">&#9664; Previous</button><button data-nav="1" title="Next">Next &#9654;</button></span>
  <span id="rib-r" style="display:none">From <input type="date" id="rb-f"> To <input type="date" id="rb-t"></span>
  <span id="rib-m" style="display:none"><select id="rb-m"></select></span>
  <span class="mu" id="rib-l"></span>
@@ -3277,9 +3278,9 @@ function dpExtra(p,L){if(p==='lt')return[L,L,'Latest · '+dl(L)+' '+ds(L).slice(
 function dpBar(k,cur,nav,rg){return`<span class="seg dpb">${DPR.filter(x=>rg||x[0]!=='rg').map(x=>`<button data-${k}="${x[0]}" class="${cur===x[0]?'on':''}">${x[1]}</button>`).join('')}</span>`+(nav?`<span class="seg dpb"><button data-dpn="${nav}|-1" title="Previous period">&#9664; Previous</button><button data-dpn="${nav}|1" title="Next period">Next &#9654;</button></span>`:'')}
 function rtLast(){let L=0;(RTY.t||[]).filter(x=>x.ok).forEach(x=>x.rows.forEach(r=>{if(r[0]>L)L=r[0]}));return L||today0()}
 // Previous / Next: moves the window picked in the bar by its own length (a month by a month) and keeps it as a Range
-function dpNav(nav,dir){const T=nav==='tp'?{L:rtLast(),w:L=>rtWin(L),p:RO.tp,set:(a,b)=>{RO.tp='rg';RO.rf=ds(a);RO.rt=ds(b)}}:{L:today0(),w:L=>stWin(L),p:RO.cp||'d30',set:(a,b)=>{RO.cp='rg';RO.cf=ds(a);RO.ct=ds(b)}};
+function dpNav(nav,dir){const T=nav==='sm'?{L:rtLast(),w:L=>rsWin(L),p:RO.sm,set:(a,b)=>{if(a===b){RO.sm='d';RO.sd=ds(a)}else{RO.sm='rg';RO.sf=ds(a);RO.st=ds(b)}}}:nav==='tp'?{L:rtLast(),w:L=>rtWin(L),p:RO.tp,set:(a,b)=>{RO.tp='rg';RO.rf=ds(a);RO.rt=ds(b)}}:{L:today0(),w:L=>stWin(L),p:RO.cp||'d30',set:(a,b)=>{RO.cp='rg';RO.cf=ds(a);RO.ct=ds(b)}};
  let [a,b]=T.w(T.L);if(T.p==='all')return;let na,nb;
- if(T.p==='m0'||T.p==='m1'){const d=new Date(a*DAY),y=d.getUTCFullYear(),m=d.getUTCMonth()+dir;na=Date.UTC(y,m,1)/DAY;nb=Date.UTC(y,m+1,0)/DAY}else{const n=b-a+1;na=a+dir*n;nb=b+dir*n}
+ if(T.p==='yd')T.p='d';if(T.p==='m0'||T.p==='m1'){const d=new Date(a*DAY),y=d.getUTCFullYear(),m=d.getUTCMonth()+dir;na=Date.UTC(y,m,1)/DAY;nb=Date.UTC(y,m+1,0)/DAY}else{const n=b-a+1;na=a+dir*n;nb=b+dir*n}
  if(nb>T.L){nb=T.L;if(na>nb)return}T.set(na,nb);render()}
 function rtWin(L){const c=ds(L).slice(0,7),x0=dpExtra(RO.tp,L);if(x0)return x0;
  if(RO.tp==='all')return[0,L,'All data'];
@@ -3465,6 +3466,7 @@ function rtRepAll(live,a,b,lab,sel){
 // ---- Route statements: one Aero-style statement per account (sales by route, running expense, running income, trips, averages) ----
 const RSC='.rsclk{cursor:pointer}.rsclk:hover td{background:#eef6f5}.rsclk.on td{background:#dcefec;font-weight:700}.rsd1{margin-top:12px;padding-top:10px;border-top:2px solid #0b7a78}.rsdt td,.rsdt th{padding:4px 5px;font-size:13px;text-align:left}.rsdt td:nth-last-child(-n+5),.rsdt th:nth-last-child(-n+5){text-align:right}.rsmx td,.rsmx th{padding:4px 6px}.rsq4 td.bst{background:#e6f2f0;font-weight:800;color:#0b7a78}body.rsp .rsmx{table-layout:auto;font-size:15px}body.rsp .rsmx th:first-child,body.rsp .rsmx td:first-child{width:auto;white-space:normal}.rsoth{display:none}body.rsp .rsk{grid-template-columns:repeat(2,1fr)}body.rsp .rsk b{font-size:24px}body.rsp .rsk span{font-size:14px}body.rsp .rsq4{font-size:18px}body.rsp .rsq4 th{font-size:14px}body.rsp .rsq4 th,body.rsp .rsq4 td{padding:6px 8px}body.rsp .rsc1 h3{font-size:20px}body.rsp .rsx{display:none}body.rsp .rsq4{table-layout:fixed}body.rsp .rsq4 th:first-child,body.rsp .rsq4 td:first-child{width:36%;white-space:normal}body.rsp .rsq4 th{white-space:normal;line-height:1.15;font-size:13px;vertical-align:bottom}body.rsp .rsq4 th:first-child,body.rsp .rsq4 td:first-child{width:34%}body.rsp .rss th{white-space:nowrap}body.rsp .rss{table-layout:auto;font-size:16px}body.rsp .rss th:first-child,body.rsp .rss td:first-child{width:auto}.rsc1{border:2px solid #0b7a78;background:#fff;color:#14292b;font-family:Arial,sans-serif;margin-bottom:14px;break-inside:avoid;overflow:hidden}.rsc1 h3{margin:0;background:#0b7a78;color:#fff;text-align:center;padding:8px;font-size:16px}.rsk{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid #0b7a78}.rsk div{padding:8px 10px;border-right:1px solid #cfdcdb}.rsk div:last-child{border:0}.rsk span{display:block;font-size:12px;color:#5c7173}.rsk b{font-size:18px}.rsk .hl{background:#e6f2f0}.rsk .hl b{color:#0b7a78}.rsq4{border-collapse:collapse;width:100%;font-size:14px}.rsq4 th,.rsq4 td{padding:4px 8px;text-align:right;border-bottom:1px solid #e3ebea}.rsq4 th{background:#e6f2f0;color:#07504f;font-size:12px}.rsq4 th:first-child,.rsq4 td:first-child{text-align:left}.rsq4 tr.t td{background:#e6f2f0;color:#0b7a78;font-weight:800}@media(max-width:700px){.rsk{grid-template-columns:repeat(2,1fr)}}body.bpp .rsy.bpx{display:grid!important}body.bpp #rs-all{overflow:visible!important}.rsc,.rsr{position:relative}.rsw{break-inside:avoid}.rsph{display:block;margin:0 0 3px;font:12px Arial;padding:2px 10px;border:1px solid #1d7f74;background:#e8f5f3;color:#0b3d37;border-radius:4px;cursor:pointer}@media print{.rsph{display:none}}.rsr{margin:0;border:2px solid #0b7a78;background:#fff;font-family:Arial,sans-serif;color:#14292b;break-inside:avoid}.rsr h3{margin:0;padding:7px 8px;text-align:center;background:#0b7a78;color:#fff;font-size:15px;line-height:1.25;border-bottom:1px solid #0b7a78}.rsr{overflow:hidden}.rsr table{border-collapse:collapse;width:100%;table-layout:auto;font-size:14px;line-height:1.25}.rsr th,.rsr td{border:1px solid #cfdcdb;padding:3px 5px;text-align:right}.rsr td+td,.rsr th+th{white-space:nowrap}.rsr th{font-size:12px;background:#e6f2f0;color:#07504f}.rsy.rsq{grid-template-columns:repeat(auto-fill,minmax(560px,1fr))}.rsr tr.t td{font-weight:800;background:#e6f2f0;color:#0b7a78}.rsr th:first-child,.rsr td:first-child{text-align:left}.rsr th{background:#e6f2f0;color:#07504f}.rsr tr.t td{font-weight:700;background:#e6f2f0}.rsy{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;align-items:start}.rsc{border:2px solid #0b7a78;background:#fff;color:#14292b;font-family:Arial,sans-serif;break-inside:avoid}.rsc h3{margin:0;padding:6px;text-align:center;background:#0b7a78;color:#fff;font-size:17px;border-bottom:1px solid #0b7a78}.rsc .as{text-align:center;padding:3px;border-bottom:1px solid #0b7a78;font-size:13px}.rsc table{width:100%;border-collapse:collapse}.rsc td{padding:2px 8px;font-size:14px;border:0}.rsc td+td{text-align:right;font-weight:700;border-left:1px solid #0b7a78}.rsc th{padding:2px 8px;font-size:13px;text-align:left;border-bottom:1px solid #0b7a78}.rsc th+th{text-align:right;border-left:1px solid #0b7a78}.rsc tr.h td{font-weight:700;text-decoration:underline}.rsc tr.y td{background:#e6f2f0;color:#0b7a78;font-weight:800}.rsc tr.t td{font-weight:800;border-top:1px solid #0b7a78}.rsc tr.sp td{padding:5px}.rsc .rsd{width:100%;font-size:12px;border-top:2px solid #0b7a78}.rsc .rsd td,.rsc .rsd th{font-size:12px;border-left:0}.rsc .rsd td+td,.rsc .rsd th+th{text-align:right;font-weight:400}';
 function rsWin(L){const c=ds(L).slice(0,7);
+ if(RO.sm==='yd')return[L-1,L-1,'Yesterday · '+dl(L-1)+' '+ds(L-1).slice(0,4)];
  if(RO.sm==='m1'){const pc=new Date(Date.UTC(+c.slice(0,4),+c.slice(5,7)-2,1)).toISOString().slice(0,7);return[Date.parse(pc+'-01')/DAY,Date.parse(c+'-01')/DAY-1,'Last month · '+ml(pc)]}
  if(RO.sm==='m0')return[Date.parse(c+'-01')/DAY,L,'This month · '+ml(c)];
  if(RO.sm==='rg'){const f=RO.sf||ds(L-6),t=RO.st||ds(L);let x=Date.parse(f)/DAY,y=Date.parse(t)/DAY;if(!(x<=y)){const z=x;x=y;y=z}return[x,y,dl(x)+' to '+dl(y)+' '+ds(y).slice(0,4)]}
@@ -3536,7 +3538,7 @@ function rsDetail(AC,acc,base,lab){
  return{html,text}}
 function rsSr(v){RO.sr=v;RO.rd=null;render()}
 function rsPage(el){
- const seg=`<span class="seg">${[['lt','Latest per account'],['d','Day'],['m0','This month'],['m1','Last month'],['rg','Range']].map(x=>`<button data-rsm="${x[0]}" class="${(RO.sm||'lt')===x[0]?'on':''}">${x[1]}</button>`).join('')}</span>`;
+ const seg=`<span class="seg dpb">${[['lt','Latest per account'],['yd','Yesterday'],['d','Day'],['m0','This month'],['m1','Last month'],['rg','Range']].map(x=>`<button data-rsm="${x[0]}" class="${(RO.sm||'lt')===x[0]?'on':''}">${x[1]}</button>`).join('')}</span>${(RO.sm||'lt')==='lt'?'':'<span class="seg dpb"><button data-dpn="sm|-1" title="Previous period">&#9664; Previous</button><button data-dpn="sm|1" title="Next period">Next &#9654;</button></span>'}`;
  if(!RTY.t){el.innerHTML=roHead('Route profitability · Report','Reading the Income Statement sheet…')+`<div class="c emp"><b>${RTY.err?'Could not load':'Reading the Income Statement sheet…'}</b>${esc(RTY.err||'This can take a few seconds.')}${RTY.err?'<br><button data-rtr="1">Try again</button>':''}</div>`;rtLoad();return}
  const live=RTY.t.filter(x=>x.ok);
  if(!live.length){el.innerHTML=roHead('Route profitability · Report','',seg)+'<div class="c emp"><b>No data yet</b>Nothing readable in the ALL tab of the Income Statement sheet.<br><button data-rtr="1">Check again</button></div>';return}
@@ -4063,17 +4065,17 @@ function render(){
  if(!IDX)return;window.DYRL=null;
  if(OFF.includes(TS.pg))TS.pg='ov';
  if(!pgOk(TS.pg))TS.pg=firstPg();
- if(TS.pg!=='mn'&&TS.pg!=='dy'&&TS.mode==='prev')TS.mode='last';if((TS.pg==='mn'||TS.pg==='dy')&&TS.mode==='d30')TS.mode='last';
+ if((TS.pg==='mn'||TS.pg==='dy')&&TS.mode==='d30')TS.mode='last';
  try{sessionStorage.setItem('mm-pg',TS.pg)}catch(e){}
  fillMonths();
  const [a,b]=rng();
  document.querySelectorAll('[data-pg]').forEach(x=>x.classList.toggle('on',x.dataset.pg===TS.pg));
- document.querySelectorAll('[data-m]').forEach(x=>{x.classList.toggle('on',x.dataset.m===TS.mode);const m=TS.pg==='mn',y=TS.pg==='dy';if(x.dataset.m==='last')x.textContent=(m||y)?'Today':'Last date';if(x.dataset.m==='prev')x.style.display=(m||y)?'':'none';if(x.dataset.m==='d30')x.style.display=(m||y)?'none':''});$('rib-sp').style.display=TS.pg==='mn'?'':'none';
+ document.querySelectorAll('[data-m]').forEach(x=>{x.classList.toggle('on',x.dataset.m===TS.mode);const m=TS.pg==='mn',y=TS.pg==='dy';if(x.dataset.m==='last')x.textContent=(m||y)?'Today':'Latest';if(x.dataset.m==='prev')x.style.display='';if(x.dataset.m==='d30')x.style.display=(m||y)?'none':''});$('rib-sp').style.display=TS.pg==='mn'?'':'none';
  $('rib-r').style.display=TS.mode==='range'?'':'none';$('rib-m').style.display=TS.mode==='month'?'':'none';
  $('rb-f').value=ds(a);$('rb-t').value=ds(b);$('rb-m').value=TS.month;$('rib-l').textContent=rlab(a,b);
   const PGS=['ov','sl','sr','bk','psc','rpo','mn','dc','en','cf','dr','rp','ex','fl','mt','dx','fu','in','st','rt','pu','bc','sy','lt','bi','ro','dy','pr','ic','gp','cl','ax'];
  PGS.forEach(p=>{const e=$('pg-'+p);if(e)e.style.display=TS.pg===p?'':'none'});
- $('rib').style.display=['ov','sl','mn','dy'].includes(TS.pg)?'':'none';{const rd=$('rib-dy');if(rd)rd.style.display=TS.pg==='dy'?'flex':'none';const nv=$('rib-nv');if(nv)nv.style.display=TS.pg==='dy'?'flex':'none'}
+ $('rib').style.display=['ov','sl','mn','dy'].includes(TS.pg)?'':'none';{const rd=$('rib-dy');if(rd)rd.style.display=TS.pg==='dy'?'flex':'none';const nv=$('rib-nv');if(nv)nv.style.display='flex'}
  const ND={bk:['b','p','l'],psc:['s','w'],en:['b','p','s','c','l','q','x'],mn:['o'],cf:['b','s','r'],dr:['o'],rp:['b','s','w'],rpo:['b','s','o','i'],ex:['r'],fl:['r'],mt:['r'],dx:['r'],fu:['r'],in:['r'],st:['r'],rt:[],pu:['r'],bc:['r'],sy:['r'],lt:['r'],ro:['r'],dy:[],cl:[],pr:[],ic:['i','o'],gp:['g'],ax:[],ov:['b','s','o','r','i']},nd=ND[TS.pg]||[],ready=nd.every(k=>DC&&DC[k]);
  const blocking=!['ov'].includes(TS.pg);
  $('ld').style.display=(ready||!blocking)?'none':'';
@@ -4251,4 +4253,21 @@ $('rb-m').onchange=()=>{TS.mode='month';TS.month=$('rb-m').value;render()};
 $('dc-go').onclick=()=>{DC=null;dc()};
 $('rf').onclick=()=>{$('sub').textContent='Refreshing from the monthly files (can take a few minutes)…';srv('refreshAll').then(m=>{alert(m);load()}).catch(e=>{$('sub').textContent='Refresh failed: '+e.message})};
 load();
+
+// ---- click a column heading to sort any table (rows marked as totals stay at the bottom) ----
+(function(){
+ const NUM=t=>{const x=String(t).replace(/[৳,\s%]/g,'').replace(/^\((.*)\)$/,'-$1').replace(/[−–]/g,'-');return /^[-+]?\d+(\.\d+)?$/.test(x)?parseFloat(x):NaN};
+ const OK=tb=>!tb.closest('#rp-pg,#pg-rp,#bk-rep,#bk-mock,.mgx,.cardpg,.pcd,.bpx,#pl-printroot')&&!tb.querySelector('[rowspan],[colspan]');
+ const mark=()=>document.querySelectorAll('#main table').forEach(tb=>{if(tb.dataset.srt||!OK(tb))return;const hr=[...tb.rows].find(r=>r.querySelector('th'));if(!hr||[...tb.rows].filter(r=>!r.querySelector('th')).length<3)return;tb.dataset.srt='1';[...hr.children].forEach(c=>{if(c.tagName==='TH'&&c.textContent.trim())c.classList.add('srt')})});
+ new MutationObserver(()=>{clearTimeout(window.__srtT);window.__srtT=setTimeout(mark,300)}).observe(document.getElementById('main'),{childList:true,subtree:true});
+ document.addEventListener('click',e=>{const th=e.target.closest&&e.target.closest('#main th.srt');if(!th||e.target.closest('a,button,input,select'))return;
+  const tb=th.closest('table'),hr=th.parentElement,ci=[...hr.children].indexOf(th),all=[...tb.rows].filter(r=>r!==hr&&!r.querySelector('th'));
+  const fixed=r=>/(^|\s)(t|tot|total|cl)(\s|$)/.test(r.className)||/^total/i.test(((r.cells[0]||{}).textContent||'').trim());
+  const rows=all.filter(r=>!fixed(r)),fx=all.filter(fixed),dir=th.dataset.s==='1'?-1:1;
+  const val=r=>{const c=r.cells[ci];return c?c.textContent.trim():''};
+  const nm=rows.every(r=>{const v=val(r);return v===''||v==='-'||v==='–'||!isNaN(NUM(v))});
+  rows.sort((p,q)=>{let a=val(p),b=val(q);if(nm){a=NUM(a);b=NUM(b);if(isNaN(a))a=-Infinity;if(isNaN(b))b=-Infinity;return (a-b)*dir||0}return a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'})*dir});
+  hr.parentElement.querySelectorAll('th').forEach(x=>x.removeAttribute('data-s'));th.dataset.s=String(dir);
+  const host=rows[0]?rows[0].parentElement:hr.parentElement;rows.forEach(r=>host.appendChild(r));fx.forEach(r=>host.appendChild(r))});
+})();
 </script></body></html>
