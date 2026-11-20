@@ -1042,7 +1042,19 @@ function psPass(x,today){
 function psRows(){
  const S=DC.s,today=today0(),R=S.r.filter(x=>psPass(x,today)),c={d:(p,q)=>p[0]-q[0]||alNum(p[1],q[1]),dn:(p,q)=>q[0]-p[0]||alNum(p[1],q[1]),p:(p,q)=>alNum(p[1],q[1])||p[0]-q[0],a:(p,q)=>q[2]-p[2]||p[0]-q[0],du:(p,q)=>q[4]-p[4]||p[0]-q[0]}[PF.s];
  return R.sort(c)}
-window.psF=(k,v)=>{if(k==='more'){PF.n+=60;psBody();return}if(k==='reset'){Object.assign(PF,{q:'',pty:'',st:'due',pl:'',cat:PF.cat,from:'',to:'',s:'d',n:60});bkPS();return}PF[k]=v;PF.n=60;psBody()};
+// Payment schedule date bar: quick periods and Previous / Next (the date filter is PF.from to PF.to)
+window.psDm=k=>{const t=today0(),f=d=>ds(d);PF.dm=k;PF.n=60;
+ if(!k){PF.from=PF.to='';PF.st='all'===PF.st?PF.st:PF.st}
+ else if(k==='td'){PF.from=PF.to=f(t)}else if(k==='yd'){PF.from=PF.to=f(t-1)}
+ else if(k==='wk'){const w=t-((wd(t)+1)%7);PF.from=f(w);PF.to=f(w+6)}
+ else if(k==='m0'){const m=ds(t).slice(0,7);PF.from=m+'-01';PF.to=f(Date.UTC(+m.slice(0,4),+m.slice(5),0)/DAY)}
+ else if(k==='rg'){if(!PF.from||!PF.to){PF.from=f(t-6);PF.to=f(t)}}
+ if(k&&PF.st==='due'&&k!=='td')PF.st='all';
+ bkPS()};
+window.psNav=dir=>{if(!PF.from||!PF.to)return;const a=Date.parse(PF.from)/DAY,b=Date.parse(PF.to)/DAY;let na,nb;
+ if(PF.dm==='m0'){const d=new Date(a*DAY),y=d.getUTCFullYear(),m=d.getUTCMonth()+dir;na=Date.UTC(y,m,1)/DAY;nb=Date.UTC(y,m+1,0)/DAY}else{const n=b-a+1;na=a+dir*n;nb=b+dir*n}
+ PF.from=ds(na);PF.to=ds(nb);if(PF.dm!=='m0')PF.dm='rg';PF.n=60;bkPS()};
+window.psF=(k,v)=>{if(k==='more'){PF.n+=60;psBody();return}if(k==='reset'){Object.assign(PF,{q:'',pty:'',st:'due',pl:'',cat:PF.cat,from:'',to:'',s:'d',n:60,dm:''});bkPS();return}PF[k]=v;PF.n=60;psBody()};
 window.psCsv=()=>{const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"',today=today0(),L=[['Date','Category','Party','Amount','Paid','Due','Status','Payment plan','Payment date']].concat(psRows().map(x=>[ds(x[0]),x[9],x[1],x[2],x[3],x[4],x[5]||({paid:'Paid',od:'Overdue',td:'Due today',up:'Upcoming'}[psStat(x,today)]),x[6]||'',x[7]?ds(x[7]):'']));
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+L.map(r=>r.map(q).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));a.download='payment-schedule.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)};
 function psBody(){
@@ -1061,7 +1073,7 @@ function bkPS(){
   <select onchange="psF('st',this.value)" aria-label="Status">${[['due','Overdue, today and upcoming'],['all','All rows (including paid)'],['od','Overdue'],['td','Due today'],['up','Upcoming'],['part','Part paid'],['paid','Paid']].map(([k,l])=>`<option value="${k}"${sel(PF.st,k)}>${l}</option>`).join('')}</select>
   <select onchange="psF('cat',this.value)" aria-label="Category"><option value="">Cash and Cheque</option>${['Cash','Cheque'].map(c=>`<option value="${c}"${sel(PF.cat,c)}>${c} payment</option>`).join('')}</select>
   <select onchange="psF('pl',this.value)" aria-label="Payment plan"><option value="">All plans</option>${uq(S.r.map(x=>x[6])).map(p=>`<option value="${esc(p)}"${sel(PF.pl,p)}>${esc(p)}</option>`).join('')}</select>
-  <label class="mu">From <input type="date" value="${PF.from}" onchange="psF('from',this.value)" style="${inp}"></label><label class="mu">To <input type="date" value="${PF.to}" onchange="psF('to',this.value)" style="${inp}"></label>
+  <span class="seg dpb">${[['','All dates'],['td','Today'],['yd','Yesterday'],['wk','This week'],['m0','This month'],['rg','Range']].map(([k,l])=>`<button onclick="psDm('${k}')" class="${(PF.dm||'')===k?'on':''}">${l}</button>`).join('')}</span>${PF.from&&PF.to?`<span class="seg dpb"><button onclick="psNav(-1)">&#9664; Previous</button><button onclick="psNav(1)">Next &#9654;</button></span>`:''}${PF.dm==='rg'?`<label class="mu">From <input type="date" value="${PF.from}" onchange="psF('from',this.value)" style="${inp}"></label><label class="mu">To <input type="date" value="${PF.to}" onchange="psF('to',this.value)" style="${inp}"></label>`:''}
   <select onchange="psF('s',this.value)" aria-label="Sort by">${[['d','Sort: Date, oldest first'],['dn','Sort: Date, newest first'],['p','Sort: Party A to Z'],['a','Sort: Amount, highest'],['du','Sort: Due, highest']].map(([k,l])=>`<option value="${k}"${sel(PF.s,k)}>${l}</option>`).join('')}</select>
   <button onclick="psF('reset')">Clear filters</button><button onclick="psCsv()" title="Download what is listed as a CSV file for Excel">Download CSV</button></div>
  <div id="psal-b"></div>`;
