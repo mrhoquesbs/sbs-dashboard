@@ -400,6 +400,30 @@ function getLedger_c_() {
   return JSON.stringify({ r: ledgerRows_(ss, tz).filter(x => x.party.toLowerCase() !== 'reconciliation').map(x => [x.day, x.bank, x.type, x.cat, x.party, x.det, x.amt, x.row]) });
 }
 
+// Everything the Bank page needs in one call: the bank sheet is opened and the ledger read once, instead of three separate calls
+// (getBank, getPP, getLedger) that each opened the sheet and read the whole ledger again. Same shapes as the three functions above.
+function getBankPack() { guard_('bk', 'en'); return memo_('getBankPack', [], 120, () => getBankPack_c_()); }
+function getBankPack_c_() {
+  const ss = SpreadsheetApp.openById(MGMT_ID), tz = ss.getSpreadsheetTimeZone(), all = ledgerRows_(ss, tz), L = all.filter(x => x.party.toLowerCase() !== 'reconciliation');
+  const K = BANK_SRC_.length, banks = BANKS_.slice(), anchor = openingAnchor_(ss), conf = Date.parse(CONFIRMED.date) / 864e5;
+  L.forEach(x => { if (banks.indexOf(x.bank) < 0) banks.push(x.bank); });
+  const days = {}; L.forEach(x => { (days[x.day] = days[x.day] || []).push(x); });
+  const ds = Object.keys(days).map(Number).sort((a, b) => a - b), r = [];
+  ds.forEach((d, di) => {
+    banks.forEach((b, bi) => {
+      const dep = new Array(K).fill(0); let p = 0, q = 0;
+      for (const x of days[d]) if (x.bank === b) { if (x.type === 'Deposit') dep[depIdx_(x.cat, x.party)] += x.amt; else if (x.cat.toLowerCase() === 'loan adjustment') q += x.amt; else p += x.amt; }
+      const op = (d === conf && CONFIRMED.open[b] !== undefined) ? CONFIRMED.open[b] : (di === 0 ? (anchor[b] || 0) : 0);
+      r.push([d, bi, op].concat(dep, [dep.reduce((s, v) => s + v, 0), p, q, p + q]));
+    });
+  });
+  return JSON.stringify({
+    b: { banks: banks, src: BANK_SRC_, ix: { dep: 3 + K, pp: 4 + K, ln: 5 + K, tp: 6 + K }, r: r },
+    p: { r: L.filter(x => x.type === 'Payment').map(x => [x.day, x.party, x.det, x.amt, x.bank, payType_(x.cat), x.row]) },
+    l: { r: L.map(x => [x.day, x.bank, x.type, x.cat, x.party, x.det, x.amt, x.row]) }
+  });
+}
+
 // Overspeeding tab of the Monitoring team sheet. Removes repeated rows (the same event listed twice).
 // Returns { r:[[day, trip, bus, startMinute, seconds, topSpeed, avgSpeed, lat, lon, place, driver, supervisor, alerts, monitor, note]], raw, buses, matched, unmatched, dateMismatch, roster }
 // Columns are found by their header names (Date, Bus No, Start timing, End Timing, ... Duration, Top Speed, Average, Location, Driver, Supervisor, Alerts, Monitor, Note), so adding or moving a column does not break the page.

@@ -5,7 +5,7 @@
 // Env: DB (D1), CF_TEAM, CF_AUD, APPS_URL, RPC_SECRET, PUSH_TOKEN
 const FRESH = 120e3, STALE = 7 * 864e5, MAXKEYS = 60, WARM = 7 * 864e5;
 // pages people open first or wait for most: kept ready for everyone who used the dashboard in the last week
-const HEAVY = [['getMeta', []], ['getFiltered', [{}]], ['getPlan', []], ['getBank', []], ['getPayments', []], ['getOverspeed', []], ['getRouteTypes', []], ['getTypeDeposits', []]];
+const HEAVY = [['getMeta', []], ['getFiltered', [{}]], ['getPlan', []], ['getBank', []], ['getBankPack', []], ['getPS', []], ['getPayments', []], ['getOverspeed', []], ['getRouteTypes', []], ['getTypeDeposits', []]];
 const J = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 const b64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
 let JW = null, JWT_AT = 0;

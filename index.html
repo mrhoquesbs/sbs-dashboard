@@ -900,7 +900,11 @@ function prof(){
 let DC=null,dcBusy=false;
 const kv=(rows)=>tableX([['Check'],['Result',1]],rows);
 const issue=t=>`<div style="margin-top:8px;padding:6px 8px;border-radius:6px;background:#FDF0D5;color:#6B4300;font-size:13px">${t}</div>`;
-async function need(keys){DC=DC||{};const f={b:'getBank',p:'getPP',l:'getLedger',q:'getCashForm',x:'getFixedForm',s:'getPS',w:'getBills',c:'getCash',o:'getOverspeed',r:'getRecords',i:'getIncidents',g:'getGarage',gi:'getGarageInv',gh:'getGarageHR'};await Promise.all(keys.filter(k=>!DC[k]).map(async k=>{try{DC[k]=JSON.parse(await srv(f[k]))}catch(e){DC[k]={err:e.message}}}))}
+async function need(keys){DC=DC||{};const f={b:'getBank',p:'getPP',l:'getLedger',q:'getCashForm',x:'getFixedForm',s:'getPS',w:'getBills',c:'getCash',o:'getOverspeed',r:'getRecords',i:'getIncidents',g:'getGarage',gi:'getGarageInv',gh:'getGarageHR'};
+ const one=k=>srv(f[k]).then(t=>{DC[k]=JSON.parse(t)}).catch(e=>{DC[k]={err:e.message}}),todo=keys.filter(k=>!DC[k]),bl=todo.filter(k=>k==='b'||k==='p'||k==='l');
+ // Bank page: the bank sheet is read once with getBankPack instead of three calls (getBank, getPP, getLedger); if that fails, the three calls are made as before
+ const pack=bl.includes('p')||bl.includes('l')?srv('getBankPack').then(t=>{const P=JSON.parse(t);bl.forEach(k=>{if(!P[k])throw 0;DC[k]=P[k]})}).catch(()=>Promise.all(bl.filter(k=>!DC[k]).map(one))):Promise.all(bl.map(one));
+ await Promise.all([pack].concat(todo.filter(k=>!bl.includes(k)).map(one)))}
 function setBounds(){
  const ok=k=>DC&&DC[k]&&!DC[k].err;
  const bd=[].concat(ok('b')?DC.b.r.map(x=>x[0]):[],ok('p')?DC.p.r.map(x=>x[0]):[]);{const t0=today0(),bf=bd.filter(x=>x<=t0);BKB=bd.length?[Math.min(...bd),bf.length?Math.max(...bf):Math.max(...bd)]:null}
