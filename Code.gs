@@ -441,7 +441,18 @@ function cols_(hdr, names) {                  // first header that contains any 
   const o = {}; for (const k in names) { o[k] = -1; for (const w of names[k]) { const i = h.findIndex(x => x.indexOf(w) >= 0); if (i >= 0) { o[k] = i; break; } } }
   return o;
 }
-function getOverspeed() { guard_('mn', 'ov', 'ic'); return memo_('getOverspeed', [], 120, () => getOverspeed_c_()); }
+// The Overspeeding tab has about 65,000 rows, and building the result from it takes minutes. So the finished result is kept as a saved copy (a file next to dict.json),
+// rebuilt in the background every 10 minutes by refreshOverspeed (run overspeedCopySetup once to create that schedule). The page reads the saved copy; if it is missing or
+// older than 60 minutes (the schedule stopped), it is built live as before.
+const OS_FILE_ = 'overspeed_cache.json';
+function osCopy_() { try { const f = file_(OS_FILE); return f && Date.now() - f.getLastUpdated().getTime() < 36e5 ? f.getBlob().getDataAsString() : null; } catch (e) { return null; } }
+function getOverspeed() { guard_('mn', 'ov', 'ic'); return memo_('getOverspeed', [], 120, () => osCopy_() || getOverspeed_c_()); }
+function refreshOverspeed() { const t0 = Date.now(), s = getOverspeed_c_(); save_(OS_FILE, s); console.log('Overspeed copy saved: ' + Math.round(s.length / 1024) + ' KB, built in ' + (Date.now() - t0) + ' ms'); return Math.round(s.length / 1024) + ' KB, ' + (Date.now() - t0) + ' ms'; }
+function overspeedCopySetup() {
+  ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === 'refreshOverspeed') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('refreshOverspeed').timeBased().everyMinutes(10).create();
+  return refreshOverspeed();
+}
 function getOverspeed_c_() {
   const ss = SpreadsheetApp.openById(MON_ID), tz = ss.getSpreadsheetTimeZone(), sh = ss.getSheetByName('Overspeeding');
   const hdr = sh.getRange(1, 1, 1, 14).getValues()[0], c = cols_(hdr, { place: ['place'], date: ['date'], coach: ['coach', 'trip'], bus: ['bus'], st: ['start'], en: ['end'], du: ['duration'], top: ['top'], avg: ['average', 'avg'], loc: ['location'], dr: ['driver'], su: ['supervisor'], al: ['alert'], mo: ['monitor'], no: ['note'] });

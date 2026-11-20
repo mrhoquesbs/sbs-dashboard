@@ -3,7 +3,7 @@
  *  Script properties: RPC_SECRET (long random text, same as in Cloudflare), CLOUD_URL (https://xxxx.pages.dev), PUSH_TOKEN (same as in Cloudflare).
  *  Run setupCloud() once. */
 let FWD_EMAIL_ = '';
-const NOCALL_ = ['doGet', 'doPost', 'setupCloud', 'cloudPrewarm', 'cloudPurge', 'onSheetChange'];
+const NOCALL_ = ['doGet', 'doPost', 'setupCloud', 'cloudPrewarm', 'cloudPurge', 'onSheetChange', 'refreshOverspeed', 'overspeedCopySetup'];
 
 function doPost(e) {
   const out = o => ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
