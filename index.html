@@ -497,6 +497,13 @@ body.bpp .bpx.bn1 .pch{padding:12px 18px!important}body.bpp .bpx.bn1 .pch b{font
 .brx .ism td.m{text-align:right;color:#444}
 }
 .bm-bkf{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:center}
+</style><style id="sp4">
+body.ipp .ipx .pcd table.i3 td.n{text-align:right!important;white-space:nowrap}
+body.ipp .ipx .pcd table.i3 td:first-child{white-space:normal!important}
+body.ipp .ipx .pcd table.i3 td.m{color:#333!important}
+body.ipp .ipx .pcd table.i3 tr.adr td:first-child{padding-left:24px!important}
+body.ipp .ipx .pcd table.i3 tr.adr td.m{font-weight:600}
+body.ipp .ipx .pcd table.i3 .pcs{font-size:.8em!important;font-weight:600;color:#0b7a78}
 </style></head><body>
 <div id="app">
 <style>.rtx{display:none}@media print{body.rtp .sbx:not(.rtx){display:none!important}body.rtp .rtx{display:block!important}
@@ -3654,9 +3661,21 @@ function scInner(BA,mg,AD,RD){
   if(window.SCWIDE&&!tot)return `<div class="pcd"><div class="pch"><b>${esc(nm)}</b>${x.sales&&sS?`<span>${(x.sales/sS*100).toFixed(1)}% of sales</span>`:''}</div><div class="pc2"><div class="pcl"><table>${t1+t2}</table></div><div class="pcr"><table>${t3}</table>${av?`<table class="avt">${av}</table>`:''}</div></div></div>`;
   return `<div class="pcd${tot&&mg?' tot3':''}"><div class="pch"><b>${esc(nm)}</b>${x.sales&&sS?`<span>${(x.sales/sS*100).toFixed(1)}% of sales</span>`:''}</div><table>${t1+t2+t3}</table>${av?`<table class="avt">${av}</table>`:''}</div>`};
  const bx=(l,v,z,sm)=>`<div${z?' class="z"':''}><span>${l}</span><b>${v}</b>${sm?`<small>${sm}</small>`:''}</div>`,bankRec=TT.bank+TT.toBank;
+ const card3=(n,x,t)=>i3c(card(n,x,t));
  if(mg===2){const ex=TT.approved,cb=TT.received+bankRec;
-  return `${window.SCSUB?'':`<div class="pss p5 ip5">${bx('Sales',f(TT.sales))+bx('Running income',f(TT.income),0,(TT.sales?(TT.income/TT.sales*100).toFixed(1)+'% of sales':'')+(TT.buses?' · '+f(Math.round(TT.binc/TT.buses))+' per bus':''))+bx('Operating Expenses',f(ex),0,'Advance '+f(TT.advances)+' not included')+bx('Cash & Bank Deposit',f(cb),1,'Cash '+f(TT.received)+' · Bank '+f(bankRec))+bx('Online & Web',f(TT.online),0,TT.sales?(TT.online/TT.sales*100).toFixed(1)+'% of sales':'')}</div>`}<div class="pcg${BA.length<=4||window.SCSUB?' ip4':''}">${BA.map(x=>card(x.account,x)).join('')}${window.SCONE||window.SCSUB?'':card('Total',TT,1)}</div>`}
+  return `${window.SCSUB?'':`<div class="pss p5 ip5">${bx('Sales',f(TT.sales))+bx('Running income',f(TT.income),0,(TT.sales?(TT.income/TT.sales*100).toFixed(1)+'% of sales':'')+(TT.buses?' · '+f(Math.round(TT.binc/TT.buses))+' per bus':''))+bx('Operating Expenses',f(ex),0,'Advance '+f(TT.advances)+' not included')+bx('Cash & Bank Deposit',f(cb),1,'Cash '+f(TT.received)+' · Bank '+f(bankRec))+bx('Online & Web',f(TT.online),0,TT.sales?(TT.online/TT.sales*100).toFixed(1)+'% of sales':'')}</div>`}<div class="pcg${BA.length<=4||window.SCSUB?' ip4':''}">${BA.map(x=>card3(x.account,x)).join('')}${window.SCONE||window.SCSUB?'':card3('Total',TT,1)}</div>`}
  return `<div class="pss${mg?' p5':''}">${bx('Sales',f(TT.sales))+bx(mg?'Running income':'Income',f(TT.income)+(mg?pct(TT.income,TT.sales):''))+bx('Cash payable',f(TT.payable))+bx('Cash received',f(TT.received),1)+(mg?bx('Bank received',f(bankRec),1):'')}</div><div class="pcg">${BA.map(x=>card(x.account,x)).join('')}${card('Total',TT,1)}</div>`}
+function i3c(h){ // Income Position card in the bank-block layout: label | item figures in the middle | totals on the right
+ const cg='<colgroup><col style="width:50%"><col style="width:24%"><col style="width:26%"></colgroup>';
+ h=h.replace(/<table class="avt">/g,'<table class="avt i3">'+cg).replace(/<table>/g,'<table class="i3">'+cg);
+ return h.replace(/<tr( class="([^"]*)")?>([\s\S]*?)<\/tr>/g,(m,a,c,b)=>{c=c||'';a=a||'';
+  if(/colspan="2"/.test(b))return m.replace('colspan="2"','colspan="3"');
+  const q=b.match(/^<td([^>]*)>([\s\S]*?)<\/td><td class="n">([\s\S]*?)<\/td>$/);if(!q)return m;
+  let l=q[2],v=q[3];
+  if(/\b(adr|olr)\b/.test(c)){if(v==='–'&&/olr/.test(c))return '';l=l.replace(/^[├└] /,'');return `<tr${a}><td${q[1]}>${l}</td><td class="n m">${v}</td><td class="n"></td></tr>`}
+  const p=v.match(/^([\s\S]*?) <span class="pcs">\(([\s\S]*?)\)<\/span>$/);
+  if(p)return `<tr${a}><td${q[1]}>${l}</td><td class="n m"><span class="pcs">${p[2]} of sales</span></td><td class="n">${p[1]}</td></tr>`;
+  return `<tr${a}><td${q[1]}>${l}</td><td class="n m"></td><td class="n">${v}</td></tr>`})}
 function scHead(d,t){return `<div class="bpl"><img src="${logoSrc()}" alt=""><div class="bpl1"><b>Soudia Coach Service</b><span>${t}</span></div><div class="bpl2"><b>${esc(window.DYRL||dyLab(d))}</b><span>Printed ${dfull(today0())}</span></div></div>`}
 function scBpx(BA,d){return `<div class="bpx sbx">${scHead(d,'Daily sales and collection by account')}${scInner(BA)}</div>`}
 function dyMgx(R,d){
@@ -3780,7 +3799,7 @@ function cpBlock(root){
  let T=[],H=[];const hs=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;');
  const tbl=(t)=>{let rows=[...t.rows];if(!rows.length)return;H.push('<table style="border-collapse:collapse;margin:4px 0;font-family:Arial;font-size:13px">');
   rows.forEach(r=>{const c=[...r.cells].map(cpTxt),hd=r.classList.contains('h')||r.cells[0]&&r.cells[0].tagName==='TH',tt=/\b(k|cl|tt)\b/.test(r.className);
-   if(r.cells.length===1||(r.cells.length>1&&r.classList.contains('h'))){T.push('▸ '+c[0]);}else if(c.length===2){T.push(c[0]+': '+c[1])}else T.push(c.join(' | '));
+   if(r.cells.length===1||(r.cells.length>1&&r.classList.contains('h'))){T.push('▸ '+c[0]);}else if(c.length===2){T.push(c[0]+': '+c[1])}else if(c.length===3){T.push(c[0]+': '+(c[1]&&c[2]?c[2]+' ('+c[1]+')':c[1]||c[2]))}else T.push(c.join(' | '));
    H.push('<tr>'+[...r.cells].map((x,i)=>`<${hd?'th':'td'} style="border:1px solid #ccc;padding:3px 8px;text-align:${i&&c.length>1?'right':'left'};${hd||tt?'font-weight:bold;background:#eef6f5':''}"${x.colSpan>1?' colspan="'+x.colSpan+'"':''}>${hs(cpTxt(x))}</${hd?'th':'td'}>`).join('')+'</tr>')});
   H.push('</table>')};
  const walk=el=>{for(const c of el.children){
