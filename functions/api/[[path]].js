@@ -3,7 +3,9 @@
 //  - Reads (names starting get...) are kept in D1 and answered at once; a stale answer is returned and refreshed in the background.
 //  - Everything else (saves, edits, refresh) goes straight to Apps Script as the signed-in person, then the cache is cleared.
 // Env: DB (D1), CF_TEAM, CF_AUD, APPS_URL, RPC_SECRET, PUSH_TOKEN
-const FRESH = 120e3, STALE = 864e5, MAXKEYS = 40;
+const FRESH = 120e3, STALE = 7 * 864e5, MAXKEYS = 60, WARM = 7 * 864e5;
+// pages people open first or wait for most: kept ready for everyone who used the dashboard in the last week
+const HEAVY = [['getMeta', []], ['getFiltered', [{}]], ['getPlan', []], ['getBank', []], ['getPayments', []], ['getOverspeed', []], ['getRouteTypes', []], ['getTypeDeposits', []]];
 const J = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 const b64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
 let JW = null, JWT_AT = 0;
@@ -41,12 +43,19 @@ const bearer = (r, env) => env.PUSH_TOKEN && r.headers.get('authorization') === 
 export async function onRequest({ request, env, params, waitUntil }) {
   const path = (params.path || []).join('/'), wu = waitUntil || (() => {});
   if (request.method !== 'POST') return J({ error: 'POST only' }, 405);
-  if (path === 'purge') { if (!bearer(request, env)) return J({ error: 'no' }, 401); await env.DB.prepare('DELETE FROM rpc').run(); return J({ ok: true }); }
-  if (path === 'prewarm') {                         // called every few minutes by an Apps Script trigger: refresh what people actually use
+  if (path === 'purge') { if (!bearer(request, env)) return J({ error: 'no' }, 401); await env.DB.prepare('UPDATE rpc SET t=MIN(t,?)').bind(Date.now() - FRESH - 1e3).run(); return J({ ok: true }); }   // old copy still shown at once, rebuilt in the background
+  if (path === 'prewarm') {                         // called every 5 minutes by an Apps Script trigger: rebuild what people use, oldest first
     if (!bearer(request, env)) return J({ error: 'no' }, 401);
-    const { results } = await env.DB.prepare('SELECT k,fn,em,ar FROM rpc WHERE t<? AND la>? ORDER BY la DESC LIMIT ?').bind(Date.now() - 9e4, Date.now() - 3 * 864e5, MAXKEYS).all();
-    wu((async () => { for (const r of results) await fetchAndStore(env, r.em, r.fn, JSON.parse(r.ar), r.k); })());
-    return J({ refreshing: results.length });
+    const now = Date.now();
+    const { results } = await env.DB.prepare('SELECT k,fn,em,ar FROM rpc WHERE t<? AND la>? ORDER BY t ASC LIMIT ?').bind(now - 9e4, now - WARM, MAXKEYS).all();
+    const jobs = results.map(r => [r.em, r.fn, JSON.parse(r.ar), r.k]);
+    const { results: us } = await env.DB.prepare('SELECT em, MAX(la) m FROM rpc WHERE la>? GROUP BY em ORDER BY m DESC LIMIT 12').bind(now - WARM).all();
+    for (const u of us) for (const [fn, ar] of HEAVY) {   // first view of a main page must never wait: make the copy before they ask
+      const k = u.em + '|' + fn + '|' + JSON.stringify(ar);
+      if (!(await env.DB.prepare('SELECT 1 x FROM rpc WHERE k=?').bind(k).first()) && jobs.length < MAXKEYS + 12) jobs.push([u.em, fn, ar, k]);
+    }
+    wu((async () => { const t0 = Date.now(); for (let i = 0; i < jobs.length && Date.now() - t0 < 20e3; i += 4) await Promise.all(jobs.slice(i, i + 4).map(j => fetchAndStore(env, ...j).catch(() => {}))); })());
+    return J({ refreshing: jobs.length });
   }
   if (path !== 'rpc') return J({ error: 'not found' }, 404);
   const em = await email(request, env); if (!em) return J({ ok: false, error: 'Sign in required.' }, 401);
@@ -54,7 +63,13 @@ export async function onRequest({ request, env, params, waitUntil }) {
   const fn = String(b.fn || ''), args = Array.isArray(b.args) ? b.args : [];
   if (!/^[A-Za-z][A-Za-z0-9]{0,63}$/.test(fn)) return J({ ok: false, error: 'Bad name.' }, 400);
   if (!/^(get|whoami$)/.test(fn)) {                // a save, edit or refresh: straight through, then forget the cache
-    const o = await apps(env, em, fn, args); await env.DB.prepare('DELETE FROM rpc').run();
+    const o = await apps(env, em, fn, args);
+    if (o.ok) {                                      // the saver sees their change at once; everyone else keeps seeing the old page for a moment, then it refreshes
+      const { results } = await env.DB.prepare('SELECT fn,ar,k FROM rpc WHERE em=? ORDER BY la DESC LIMIT 8').bind(em).all();
+      await env.DB.prepare('DELETE FROM rpc WHERE em=?').bind(em).run();
+      await env.DB.prepare('UPDATE rpc SET t=MIN(t,?) WHERE em<>?').bind(Date.now() - FRESH - 1e3, em).run();
+      wu((async () => { for (let i = 0; i < results.length; i += 4) await Promise.all(results.slice(i, i + 4).map(r => fetchAndStore(env, em, r.fn, JSON.parse(r.ar), r.k).catch(() => {}))); })());
+    }
     return o.ok ? J({ ok: true, data: o.data === undefined ? null : o.data }) : J(o, 400);
   }
   const k = em + '|' + fn + '|' + JSON.stringify(args), now = Date.now();
