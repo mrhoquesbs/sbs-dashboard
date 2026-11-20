@@ -3236,14 +3236,14 @@ function biPage(el){
 
 // ================= Route profitability =================
 const RO={v:'t',p:'d30',tp:'all',ty:'all',dir:'corr',cache:{},busy:false,err:''};
-function roWin(){const t=last,c=ds(t).slice(0,7);
+function roWin(){const t=last,c=ds(t).slice(0,7),x0=dpExtra(RO.p,t);if(x0)return x0;
  if(RO.p==='m0')return[Date.parse(c+'-01')/DAY,t,'This month · '+ml(c)];
  if(RO.p==='m1'){const a=new Date(Date.UTC(+c.slice(0,4),+c.slice(5)-2,1)),k=a.toISOString().slice(0,7);return[a/DAY,Date.parse(c+'-01')/DAY-1,'Last month · '+ml(k)]}
  if(RO.p==='d90')return[t-89,t,'Last 90 days'];return[t-29,t,'Last 30 days']}
 function roPage(el){
  if(RO.v==='a')return rsPage(el);if(RO.v==='b')return bpPage(el);if(RO.v==='c')return stPage(el);if(RO.v!=='s')return rtyPage(el);
  const[a,b,lab]=roWin(),key=a+'|'+b,E=RO.cache[key];
- const seg=`<span class="seg">${[['d30','30 days'],['m0','This month'],['m1','Last month'],['d90','90 days']].map(x=>`<button data-rop="${x[0]}" class="${RO.p===x[0]?'on':''}">${x[1]}</button>`).join('')}</span>`;
+ const seg=`${dpBar('rop',RO.p,0,0)}`;
  if(!E){el.innerHTML=`<div class="ph"><div><h1>Route profitability</h1><p>${lab}</p></div><div style="display:flex;gap:8px;flex-wrap:wrap">${roSw()}${seg}</div></div><div class="c emp"><b>${RO.err?'Could not load':'Reading route sales from the monthly files…'}</b>${esc(RO.err||'This can take a few seconds.')}</div>`;
   if(!RO.busy&&!RO.err){RO.busy=true;srv('getRouteEcon',JSON.stringify({from:a,to:b})).then(j=>{RO.cache[key]=JSON.parse(j);RO.busy=false;if(TS.pg==='ro')render()}).catch(e=>{RO.busy=false;RO.err=e.message;if(TS.pg==='ro')render()})}return}
  // costs by bus, tagged records only
@@ -3271,7 +3271,17 @@ let RMAP={};const rmK=n=>String(n).toLowerCase().replace(/\s+/g,'');
 function rtCorr(n){const mg=RMAP[rmK(n)];if(mg)return mg;const p=String(n).split('-').map(s=>s.trim()).filter(Boolean),g=s=>RAL[s.toLowerCase().replace(/\s+/g,'')]||s;
  let q=null;if(p.length===2)q=p.map(g);else if(p.length===3&&p[0].toLowerCase()===p[2].toLowerCase())q=[g(p[0]),g(p[1])];
  if(!q)return n;q.sort((x,y)=>x==='CTG'?-1:y==='CTG'?1:x<y?-1:1);return q[0]+' ⇄ '+q[1]}
-function rtWin(L){const c=ds(L).slice(0,7);
+// ---- shared date bar for the route pages: Latest, Yesterday, This month, Last month, 30 / 90 days, Range, All, and Previous / Next ----
+const DPR=[['lt','Latest'],['yd','Yesterday'],['m0','This month'],['m1','Last month'],['d30','30 days'],['d90','90 days'],['rg','Range'],['all','All']];
+function dpExtra(p,L){if(p==='lt')return[L,L,'Latest · '+dl(L)+' '+ds(L).slice(0,4)];if(p==='yd')return[L-1,L-1,'Yesterday · '+dl(L-1)+' '+ds(L-1).slice(0,4)];return null}
+function dpBar(k,cur,nav,rg){return`<span class="seg dpb">${DPR.filter(x=>rg||x[0]!=='rg').map(x=>`<button data-${k}="${x[0]}" class="${cur===x[0]?'on':''}">${x[1]}</button>`).join('')}</span>`+(nav?`<span class="seg dpb"><button data-dpn="${nav}|-1" title="Previous period">&#9664; Previous</button><button data-dpn="${nav}|1" title="Next period">Next &#9654;</button></span>`:'')}
+function rtLast(){let L=0;(RTY.t||[]).filter(x=>x.ok).forEach(x=>x.rows.forEach(r=>{if(r[0]>L)L=r[0]}));return L||today0()}
+// Previous / Next: moves the window picked in the bar by its own length (a month by a month) and keeps it as a Range
+function dpNav(nav,dir){const T=nav==='tp'?{L:rtLast(),w:L=>rtWin(L),p:RO.tp,set:(a,b)=>{RO.tp='rg';RO.rf=ds(a);RO.rt=ds(b)}}:{L:today0(),w:L=>stWin(L),p:RO.cp||'d30',set:(a,b)=>{RO.cp='rg';RO.cf=ds(a);RO.ct=ds(b)}};
+ let [a,b]=T.w(T.L);if(T.p==='all')return;let na,nb;
+ if(T.p==='m0'||T.p==='m1'){const d=new Date(a*DAY),y=d.getUTCFullYear(),m=d.getUTCMonth()+dir;na=Date.UTC(y,m,1)/DAY;nb=Date.UTC(y,m+1,0)/DAY}else{const n=b-a+1;na=a+dir*n;nb=b+dir*n}
+ if(nb>T.L){nb=T.L;if(na>nb)return}T.set(na,nb);render()}
+function rtWin(L){const c=ds(L).slice(0,7),x0=dpExtra(RO.tp,L);if(x0)return x0;
  if(RO.tp==='all')return[0,L,'All data'];
  if(RO.tp==='rg'){const f=RO.rf||ds(L-29),t=RO.rt||ds(L);let x=Date.parse(f)/DAY,y=Date.parse(t)/DAY;if(!(x<=y)){const z=x;x=y;y=z}return[x,y,dl(x)+' '+ds(x).slice(0,4)+' to '+dl(y)+' '+ds(y).slice(0,4)]}
  if(RO.tp==='m0')return[Date.parse(c+'-01')/DAY,L,'This month · '+ml(c)];
@@ -3282,7 +3292,7 @@ function rtAgg(){return{n:0,seats:0,cap:0,sale:0,sal:0,fuel:0,toll:0,oth:0,ch:0,
 function rtAdd(g,r){g.n++;g.seats+=r[4];g.cap+=r[3];g.sale+=r[5];g.sal+=r[6];g.fl+=r[7];g.fuel+=r[8];g.toll+=r[9];g.oth+=r[10]+(r[13]||0);g.buf+=(r[13]||0);g.ch+=r[11];g.exp+=r[12]}
 function rtDer(g){g.net=g.sale-g.exp;g.mg=g.sale?g.net/g.sale*100:0;g.load=g.cap?g.seats/g.cap*100:0;g.fare=g.seats?g.sale/g.seats:0;g.npt=g.n?g.net/g.n:0;return g}
 // ---- Statement check: for every day, which accounts have an income statement in the Income Statement sheet (ALL tab) ----
-function stWin(L){const c=ds(L).slice(0,7),p=RO.cp||'d30';
+function stWin(L){const c=ds(L).slice(0,7),p=RO.cp||'d30',x0=dpExtra(p,L);if(x0)return x0;
  if(p==='all'){let m=L;(RTY.t||[]).forEach(x=>x.rows.forEach(r=>{if(r[0]<m)m=r[0]}));return[m,L,'All data']}
  if(p==='rg'){const f=RO.cf||ds(L-29),t=RO.ct||ds(L);let x=Date.parse(f)/DAY,y=Date.parse(t)/DAY;if(!(x<=y)){const z=x;x=y;y=z}return[x,y,dl(x)+' '+ds(x).slice(0,4)+' to '+dl(y)+' '+ds(y).slice(0,4)]}
  if(p==='m0')return[Date.parse(c+'-01')/DAY,L,'This month · '+ml(c)];
@@ -3290,7 +3300,7 @@ function stWin(L){const c=ds(L).slice(0,7),p=RO.cp||'d30';
  if(p==='d90')return[L-89,L,'Last 90 days'];return[L-29,L,'Last 30 days']}
 function stPage(el){
  const P=RO.cp||'d30',M=RO.cm||'all',L=today0();
- const seg=`<span class="seg">${[['d30','30 days'],['m0','This month'],['m1','Last month'],['d90','90 days'],['rg','Range'],['all','All']].map(x=>`<button data-stp="${x[0]}" class="${P===x[0]?'on':''}">${x[1]}</button>`).join('')}</span>`;
+ const seg=`${dpBar('stp',P,'cp',1)}`;
  if(!RTY.t){el.innerHTML=roHead('Statement check','Reading the Income Statement sheet…')+`<div class="c emp"><b>${RTY.err?'Could not load':'Reading the Income Statement sheet…'}</b>${esc(RTY.err||'This can take a few seconds.')}${RTY.err?'<br><button data-rtr="1">Try again</button>':''}</div>`;rtLoad();return}
  const T=RTY.t,[a,b,lab]=stWin(L),days=[];for(let d=b;d>=a;d--)days.push(d);
  const have=T.map(x=>{const m=new Map();x.rows.forEach(r=>m.set(r[0],(m.get(r[0])||0)+1));return m});
@@ -3309,7 +3319,7 @@ function roHead(t,p,seg){return`<div class="ph"><div><h1>${t}</h1><p>${p}</p></d
 // ---- Route profitability: bus performance (account x route x bus, with fuel average) ----
 window.bpSet=(k,v)=>{RO[k]=v;RO.bd=null;render()};
 function bpPage(el){
- const seg=`<span class="seg">${[['d30','30 days'],['m0','This month'],['m1','Last month'],['d90','90 days'],['rg','Range'],['all','All']].map(x=>`<button data-rtp="${x[0]}" class="${RO.tp===x[0]?'on':''}">${x[1]}</button>`).join('')}</span>`;
+ const seg=`${dpBar('rtp',RO.tp,'tp',1)}`;
  if(!RTY.t){el.innerHTML=roHead('Bus performance','Reading the Income Statement sheet…')+`<div class="c emp"><b>${RTY.err?'Could not load':'Reading the Income Statement sheet…'}</b>${esc(RTY.err||'This can take a few seconds.')}${RTY.err?'<br><button data-rtr="1">Try again</button>':''}</div>`;rtLoad();return}
  const live=RTY.t.filter(x=>x.ok);
  if(!live.length){el.innerHTML=roHead('Bus performance','',seg)+'<div class="c emp"><b>No data yet</b>Nothing readable in the ALL tab of the Income Statement sheet.<br><button data-rtr="1">Check again</button></div>';return}
@@ -3347,7 +3357,7 @@ function bpPage(el){
   +`<div class="c"><h2>${esc(acc==='*'?'All accounts':acc)} · ${esc(rt||'all routes')} · bus by bus</h2>${B.length?tableX(cols,rows,tot,640):'<span class="mu">No trips for this selection in the period.</span>'}<div class="mu" style="margin-top:6px">Click a bus for its trips. Fuel litres come from the Fuel Lt. column; the average is per trip, counting trips where no fuel was filled. Net / trip is compared with the average of everything shown. Teal is at or above average, amber is well below, red is the weakest.</div></div>`+det}
 function roSw(){return`<span class="seg">${[['t','By route type'],['a','Route statements'],['b','Bus performance'],['s','System sales & bus costs'],['c','Statement check']].map(x=>`<button data-rov="${x[0]}" class="${RO.v===x[0]?'on':''}">${x[1]}</button>`).join('')}</span>`}
 function rtyPage(el){
- const seg=`<span class="seg">${[['d30','30 days'],['m0','This month'],['m1','Last month'],['d90','90 days'],['rg','Range'],['all','All']].map(x=>`<button data-rtp="${x[0]}" class="${RO.tp===x[0]?'on':''}">${x[1]}</button>`).join('')}</span>`;
+ const seg=`${dpBar('rtp',RO.tp,'tp',1)}`;
  if(!RTY.t){el.innerHTML=roHead('Route profitability','Reading the route-type sheets…')+`<div class="c emp"><b>${RTY.err?'Could not load':'Reading the route-type sheets from Drive…'}</b>${esc(RTY.err||'This can take a few seconds.')}${RTY.err?'<br><button data-rtr="1">Try again</button>':''}</div>`;rtLoad();return}
  const T=RTY.t,live=T.filter(x=>x.ok);
  if(!live.length){el.innerHTML=roHead('Route profitability','Sales, running expense and net income by route type',seg)+`<div class="c emp"><b>No route-type data yet</b>Create a Google Sheet named <b>MB Lux Combined</b> (or LR Combined, CDC Combined, Aero Combined, AC Combined, Teknaf Combined) with the headings Journey Date, Bus, Route, Seat Capacity, Seat Sold, Total Sale, Salary, Fuel Lt., Fuel, Toll, Others, Chalan, Total Exp.${T.map(x=>x.err?'<br><span class="mu">'+esc(x.n)+': '+esc(x.err)+'</span>':'').join('')}<br><button data-rtr="1">Check again</button></div>`;return}
@@ -3574,7 +3584,7 @@ function rsPage(el){
    body=`<div class="rsc1"><h3>Routes × accounts · ${esc(ttl)} · ${esc(lab.replace('Latest entry of each account','latest entry'))}</h3><table class="rsq4 rsmx"><tr><th>Route</th>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}<th>All</th></tr>${tr}</table><div class="mu" style="margin:6px 0 0">Click a figure to see the trips behind it.</div>${(()=>{if(!RO.rd)return'';const d=rsDetail(AC,RO.rd.a,RO.rd.r,lab);RS_RT+=d.text;return d.html})()}</div>`}
  }
  el.innerHTML=roHead('Route profitability · Report',esc(lab)+' · taken from the ALL tab of the Income Statement sheet',vseg+seg)
- +`<div class="rib" style="margin-bottom:12px">${chips}${view==='acc'?'':rsel}${msel}${inputs?`<span class="seg" style="display:inline-flex;gap:6px;align-items:center;padding:4px 8px">${inputs}</span>`:''}<span class="seg">${[['corr','Both directions together'],['dir','Each direction']].map(x=>`<button data-rtd="${x[0]}" class="${RO.dir===x[0]?'on':''}">${x[1]}</button>`).join('')}</span><button data-rtr="1">Refresh</button><button data-rscopy="1" title="Copy as text">Copy</button><button data-rsprint="1" title="Print">Print</button><button data-rtimg="${view==='cross'?'rsx':'rsa'}" title="Copy what is on screen as a picture">📷 Copy photo</button></div>`
+ +`<div class="rib" style="margin-bottom:12px">${chips}${view==='acc'?'':rsel}${msel}${inputs?`<span class="seg" style="display:inline-flex;gap:6px;align-items:center;padding:4px 8px">${inputs}</span>`:''}<span class="seg">${[['corr','Both directions together'],['dir','Each direction']].map(x=>`<button data-rtd="${x[0]}" class="${RO.dir===x[0]?'on':''}">${x[1]}</button>`).join('')}</span><button data-rtr="1">Refresh</button><button data-rsprint="1" title="Print">🖨 Print</button><button data-rtimg="${view==='cross'?'rsx':'rsa'}" title="Copy what is on screen as a picture">📷 Copy photo</button></div>`
  +`<style>${RSC}</style>`
  +(body?`<div id="rs-all" class="bpx">${body}</div>`:`<div class="c emp"><b>No trips in this period</b>Pick another date or account. The latest entry is ${dl(L)} ${ds(L).slice(0,4)}.</div>`)}
 function rsTexts(){const L=(RTY.t||[]).filter(x=>x.ok);let m=0;L.forEach(x=>x.rows.forEach(r=>{if(r[0]>m)m=r[0]}));
@@ -3852,7 +3862,7 @@ function dyStPrint(){
 function dyPage(el){
  if(!DY.led&&!DY.ledErr)dyLedLoad();const[ra,rb]=rng();DY.d=ds(rb);const d=DY.d;let R=DY.c[d];
  {const nm=(R&&R.byAccount?R.byAccount.map(x=>x.account):['MB-Lux','LR','CDC','AC','Aero','Teknaf']),af=DY.af.filter(n=>nm.includes(n)),rd=$('rib-dy');
-  if(rd)rd.innerHTML=`<button data-dyd="r" title="Read the sheet again">Refresh</button><button data-dybn title="Show Income Position and Income Summary in Bangla (print and copy photo)">${BNL?'English':'বাংলা'}</button><span class="dyad"><button data-dyafo class="dyas${af.length?' on':''}" title="Choose the accounts for Income Position, its print and copy">Accounts: ${af.length?(af.length>2?af.length+' selected':esc(af.join(', '))):'All'} ▾</button>${DY.afOpen?`<div class="dyap"><label><input type="checkbox" data-dyaf="all"${af.length?'':' checked'}> <b>All accounts</b></label>${nm.map(n=>`<label><input type="checkbox" data-dyaf="${esc(n)}"${af.includes(n)?' checked':''}> ${esc(n)}</label>`).join('')}</div>`:''}</span><select onchange="dyPrintSel(this)" title="Print a report" style="padding:7px 10px;border:1px solid var(--bd,#ccc);border-radius:8px;background:var(--c,#fff);font:inherit"><option value="">🖨 Print…</option><option value="data-dyst">Cash Statement (selected dates)</option><option value="data-dyov">Cash Position</option><option value="data-dyip">Income Position</option><option value="data-dyis">Income Summary</option><option value="data-dyiy">Overall Income Summary</option><option value="data-dyec">Expense Category</option><option value="data-dyprint">Expense (all details)</option></select><select onchange="dyCopy(this)" title="Copy a print as a picture or as text" style="padding:7px 10px;border:1px solid var(--bd,#ccc);border-radius:8px;background:var(--c,#fff);font:inherit"><option value="">📋 Copy…</option><option value="img:ov">Photo: Cash Position</option><option value="img:ip">Photo: Income Position</option><option value="img:ec">Photo: Expense Category</option><option value="img:is">Photo: Income Summary</option><option value="img:iy">Photo: Overall Income Summary</option><option value="img:rp">Photo: Print expense</option><option value="txt:ov">Text: Cash Position</option><option value="txt:ip">Text: Income Position</option><option value="txt:ec">Text: Expense Category</option><option value="txt:is">Text: Income Summary</option><option value="txt:iy">Text: Overall Income Summary</option><option value="txt:rp">Text: Print expense</option></select>`}
+  if(rd)rd.innerHTML=`<button data-dyd="r" title="Read the sheet again">Refresh</button><button data-dybn title="Show Income Position and Income Summary in Bangla (print and copy photo)">${BNL?'English':'বাংলা'}</button><span class="dyad"><button data-dyafo class="dyas${af.length?' on':''}" title="Choose the accounts for Income Position, its print and copy">Accounts: ${af.length?(af.length>2?af.length+' selected':esc(af.join(', '))):'All'} ▾</button>${DY.afOpen?`<div class="dyap"><label><input type="checkbox" data-dyaf="all"${af.length?'':' checked'}> <b>All accounts</b></label>${nm.map(n=>`<label><input type="checkbox" data-dyaf="${esc(n)}"${af.includes(n)?' checked':''}> ${esc(n)}</label>`).join('')}</div>`:''}</span><select onchange="dyPrintSel(this)" title="Print a report" style="padding:7px 10px;border:1px solid var(--bd,#ccc);border-radius:8px;background:var(--c,#fff);font:inherit"><option value="">🖨 Print…</option><option value="data-dyst">Cash Statement (selected dates)</option><option value="data-dyov">Cash Position</option><option value="data-dyip">Income Position</option><option value="data-dyis">Income Summary</option><option value="data-dyiy">Overall Income Summary</option><option value="data-dyec">Expense Category</option><option value="data-dyprint">Expense (all details)</option></select><select onchange="dyCopy(this)" title="Copy a report as a picture" style="padding:7px 10px;border:1px solid var(--bd,#ccc);border-radius:8px;background:var(--c,#fff);font:inherit"><option value="">📷 Copy photo…</option><option value="img:ov">Cash Position</option><option value="img:ip">Income Position</option><option value="img:ec">Expense Category</option><option value="img:is">Income Summary</option><option value="img:iy">Overall Income Summary</option><option value="img:rp">Print expense</option></select>`}
  const hd=sub=>`<div class="ph"><div><h1>Daily cash</h1><p>${sub}</p></div></div>`;
  const ranged=rb>ra;window.DYRL=ranged?rlab(ra,rb):null;
  if(R&&ranged){if(rb-ra>61){el.innerHTML=hd(rlab(ra,rb))+'<div class="c emp"><b>Please select 62 days or fewer.</b></div>';return}const days=[];for(let x=ra;x<=rb;x++)days.push(ds(x));const miss=days.filter(s=>!DY.c[s]);if(miss.length){if(!DY.err)dyIpFetch(miss);el.innerHTML=hd(rlab(ra,rb))+`<div class="c emp"><b>${DY.err?'Could not read the Daily Cashflow sheet':'Reading '+miss.length+' more day'+(miss.length>1?'s':'')+' for the range…'}</b>${esc(DY.err||'This can take a few seconds.')}${DY.err?'<br><button data-dyd="r">Try again</button>':''}</div>`;return}R=dyMerge(days.map(s=>DY.c[s]))}
@@ -4125,7 +4135,7 @@ document.addEventListener('click',e=>{const g=s=>e.target.closest&&e.target.clos
  if(t=g('[data-rsc]')){const v=t.dataset.rsc,all=(RTY.t||[]).filter(x=>x.ok).map(x=>x.n);if(v==='*')RO.sas=null;else{let c=RO.sas||all.slice();c=c.indexOf(v)>=0?c.filter(n=>n!==v):c.concat(v);RO.sas=(!c.length||c.length===all.length)?null:c}render();return}
  if(g('[data-rscopy]')){rsCopy();return}
  if(g('[data-rsprint]')){rsPrint();return}
- if(t=g('[data-rtp]')){RO.tp=t.dataset.rtp;render();return}
+ if(t=g('[data-dpn]')){const q=t.dataset.dpn.split('|');dpNav(q[0],+q[1]);return}  if(t=g('[data-rtp]')){RO.tp=t.dataset.rtp;render();return}
  if(t=g('[data-stp]')){RO.cp=t.dataset.stp;render();return}
  if(t=g('[data-stm]')){RO.cm=t.dataset.stm;render();return}
  if(t=g('[data-rty]')){RO.ty=t.dataset.rty;render();return}
